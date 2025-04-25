@@ -52,8 +52,15 @@
         let estoqueAtualMargem = quantidade;
         let caixaAcumuladoMargem = 0;
 
+        const dataInicio = new Date(2025, 1, 1);
+        const dataPagamento = new Date(dataInicio.getTime());
+        dataPagamento.setDate(dataInicio.getDate() + prazoPagamento);
+        const dataPagamentoFormatada = dataPagamento.toISOString().split('T')[0];
+
         for (let dia = 0; dia < 60; dia++) {
-            datas.push(new Date(2025, 1, 1 + dia).toISOString().split('T')[0]);
+            const dataAtual = new Date(dataInicio.getTime());
+            dataAtual.setDate(dataInicio.getDate() + dia);
+            datas.push(dataAtual.toISOString().split('T')[0]);
 
             if (estoqueAtual > 0) {
                 let vendidos = Math.min(vendasDiarias, estoqueAtual);
@@ -89,7 +96,8 @@
                     {label: 'Estoque (Venda Constante)', data: estoque, borderColor: 'blue', yAxisID: 'y'},
                     {label: 'Fluxo de Caixa (Venda Constante)', data: fluxoCaixa, borderColor: 'green', yAxisID: 'y1'},
                     {label: 'Estoque (Margem 5%)', data: estoqueMargem, borderColor: 'purple', yAxisID: 'y'},
-                    {label: 'Fluxo de Caixa (Margem 5%)', data: fluxoCaixaMargem, borderColor: 'brown', yAxisID: 'y1'}
+                    {label: 'Fluxo de Caixa (Margem 5%)', data: fluxoCaixaMargem, borderColor: 'brown', yAxisID: 'y1'},
+                    {label: 'Prazo de Pagamento', data: datas.map(d => d === dataPagamentoFormatada ? Math.max(...estoque) * 1.05 : null), borderColor: 'red', type: 'line', pointRadius: 5, fill: false, showLine: false, yAxisID: 'y'}
                 ]
             },
             options: {
