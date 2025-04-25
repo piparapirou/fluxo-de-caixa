@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Simulador de Fluxo de Caixa</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
 <body>
@@ -32,6 +33,9 @@
 
     <script>
     function gerarGrafico() {
+        // Registrar plugin de anotação
+        Chart.register(ChartAnnotation);
+
         const precoUnitario = parseFloat(document.getElementById('precoUnitario').value);
         const quantidade = parseInt(document.getElementById('quantidade').value);
         const prazoPagamento = parseInt(document.getElementById('prazoPagamento').value);
@@ -94,10 +98,10 @@
             data: {
                 labels: datas,
                 datasets: [
-                    {label: 'Estoque (Venda Constante)', data: estoque, borderColor: 'blue', yAxisID: 'y'},
-                    {label: 'Fluxo de Caixa (Venda Constante)', data: fluxoCaixa, borderColor: 'green', yAxisID: 'y1'},
-                    {label: 'Estoque (Margem 5%)', data: estoqueMargem, borderColor: 'purple', yAxisID: 'y'},
-                    {label: 'Fluxo de Caixa (Margem 5%)', data: fluxoCaixaMargem, borderColor: 'brown', yAxisID: 'y1'}
+                    { label: 'Estoque (Venda Constante)', data: estoque, borderColor: 'blue', yAxisID: 'y' },
+                    { label: 'Fluxo de Caixa (Venda Constante)', data: fluxoCaixa, borderColor: 'green', yAxisID: 'y1' },
+                    { label: 'Estoque (Margem 5%)', data: estoqueMargem, borderColor: 'purple', yAxisID: 'y' },
+                    { label: 'Fluxo de Caixa (Margem 5%)', data: fluxoCaixaMargem, borderColor: 'brown', yAxisID: 'y1' }
                 ]
             },
             options: {
@@ -134,12 +138,12 @@
                     y: {
                         type: 'linear',
                         position: 'left',
-                        title: { display: true, text: 'Estoque (Caixas)'}
+                        title: { display: true, text: 'Estoque (Caixas)' }
                     },
                     y1: {
                         type: 'linear',
                         position: 'right',
-                        title: { display: true, text: 'Fluxo de Caixa (R$)'},
+                        title: { display: true, text: 'Fluxo de Caixa (R$)' },
                         grid: { drawOnChartArea: false }
                     }
                 }
@@ -149,5 +153,4 @@
     </script>
 </body>
 </html>
-
 
