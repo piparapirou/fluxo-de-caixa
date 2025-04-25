@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Simulador de Fluxo de Caixa</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
 <body>
     <h1>Simulador de Fluxo de Caixa</h1>
@@ -106,13 +106,13 @@
                         annotations: {
                             linhaPagamento: {
                                 type: 'line',
-                                scaleID: 'x',
-                                value: dataPagamentoFormatada,
+                                xMin: dataPagamentoFormatada,
+                                xMax: dataPagamentoFormatada,
                                 borderColor: 'red',
                                 borderWidth: 2,
                                 label: {
-                                    content: 'Prazo Pagamento',
                                     enabled: true,
+                                    content: 'Prazo Pagamento',
                                     position: 'start'
                                 }
                             }
@@ -120,8 +120,28 @@
                     }
                 },
                 scales: {
-                    y: {type: 'linear', position: 'left', title: { display: true, text: 'Estoque (Caixas)'}},
-                    y1: {type: 'linear', position: 'right', title: { display: true, text: 'Fluxo de Caixa (R$)'}, grid: {drawOnChartArea: false}}
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            tooltipFormat: 'dd/MM/yyyy'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Data'
+                        }
+                    },
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        title: { display: true, text: 'Estoque (Caixas)'}
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        title: { display: true, text: 'Fluxo de Caixa (R$)'},
+                        grid: { drawOnChartArea: false }
+                    }
                 }
             }
         });
@@ -129,4 +149,5 @@
     </script>
 </body>
 </html>
+
 
