@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulador de Fluxo de Caixa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Simulador de Fluxo de Caixa</h1>
+
+    <form id="formulario">
+        <label>Preço Unitário (R$):</label>
+        <input type="number" id="precoUnitario" value="73" step="0.01"><br><br>
+
+        <label>Quantidade (Caixas):</label>
+        <input type="number" id="quantidade" value="1000"><br><br>
+
+        <label>Prazo de Pagamento (dias):</label>
+        <input type="number" id="prazoPagamento" value="28"><br><br>
+
+        <label>Vendas Diárias (caixas):</label>
+        <input type="number" id="vendasDiarias" value="20"><br><br>
+
+        <label>Margem de Lucro (%):</label>
+        <input type="number" id="margemLucro" value="5" step="0.1"><br><br>
+
+        <button type="button" onclick="gerarGrafico()">Gerar Gráfico</button>
+    </form>
+
+    <canvas id="grafico" width="1000" height="500"></canvas>
+
+    <script>
+    function gerarGrafico() {
+        const precoUnitario = parseFloat(document.getElementById('precoUnitario').value);
+        const quantidade = parseInt(document.getElementById('quantidade').value);
+        const prazoPagamento = parseInt(document.getElementById('prazoPagamento').value);
+        const vendasDiarias = parseFloat(document.getElementById('vendasDiarias').value);
+        const margemLucro = parseFloat(document.getElementById('margemLucro').value) / 100;
+
+        const estoqueLimite = 0.7 * quantidade;
+        const precoVendaComMargem = precoUnitario * (1 + margemLucro);
+
+        let datas = [];
+        let estoque = [];
+        let fluxoCaixa = [];
+        let estoqueMargem = [];
+        let fluxoCaixaMargem = [];
+
+        let estoqueAtual = quantidade;
+        let caixaAcumulado = 0;
+
+        let estoqueAtualMargem = quantidade;
+        let caixaAcumuladoMargem = 0;
+
+        for (let dia = 0; dia < 60; dia++) {
+            datas.push(new Date(2025, 1, 1 + dia).toISOString().split('T')[0]);
+
+            if (estoqueAtual > 0) {
+                let vendidos = Math.min(vendasDiarias, estoqueAtual);
+                estoqueAtual -= vendidos;
+                caixaAcumulado += vendidos * precoUnitario;
+            }
+            if (dia === prazoPagamento) {
+                caixaAcumulado -= precoUnitario * quantidade;
+            }
+            estoque.push(estoqueAtual);
+            fluxoCaixa.push(caixaAcumulado);
+
+            if (estoqueAtualMargem > 0) {
+                let vendidosMargem = Math.min(vendasDiarias, estoqueAtualMargem);
+                estoqueAtualMargem -= vendidosMargem;
+                caixaAcumuladoMargem += vendidosMargem * precoVendaComMargem;
+            }
+            if (dia === prazoPagamento) {
+                caixaAcumuladoMargem -= precoUnitario * quantidade;
+            }
+            estoqueMargem.push(estoqueAtualMargem);
+            fluxoCaixaMargem.push(caixaAcumuladoMargem);
+        }
+
+        const ctx = document.getElementById('grafico').getContext('2d');
+        if (window.graficoAtivo) window.graficoAtivo.destroy();
+
+        window.graficoAtivo = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: datas,
+                datasets: [
+                    {label: 'Estoque (Venda Constante)', data: estoque, borderColor: 'blue', yAxisID: 'y'},
+                    {label: 'Fluxo de Caixa (Venda Constante)', data: fluxoCaixa, borderColor: 'green', yAxisID: 'y1'},
+                    {label: 'Estoque (Margem 5%)', data: estoqueMargem, borderColor: 'purple', yAxisID: 'y'},
+                    {label: 'Fluxo de Caixa (Margem 5%)', data: fluxoCaixaMargem, borderColor: 'brown', yAxisID: 'y1'}
+                ]
+            },
+            options: {
+                scales: {
+                    y: {type: 'linear', position: 'left', title: { display: true, text: 'Estoque (Caixas)'}},
+                    y1: {type: 'linear', position: 'right', title: { display: true, text: 'Fluxo de Caixa (R$)'}, grid: {drawOnChartArea: false}}
+                }
+            }
+        });
+    }
+    </script>
+</body>
+</html>
