@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>Simulador de Fluxo de Caixa</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- Annotation plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.1.1/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
 <body>
     <h1>Simulador de Fluxo de Caixa</h1>
 
-    <form id="formulario">
+    <form>
         <label>Preço Unitário (R$):</label>
         <input type="number" id="precoUnitario" value="73" step="0.01"><br><br>
 
@@ -33,8 +34,10 @@
 
     <script>
     function gerarGrafico() {
-        // Registrar plugin de anotação
-        Chart.register(ChartAnnotation);
+        // Registrar plugin de anotação (Chart.js v3)
+        if (Chart && Chart.register) {
+            Chart.register(ChartAnnotation);
+        }
 
         const precoUnitario = parseFloat(document.getElementById('precoUnitario').value);
         const quantidade = parseInt(document.getElementById('quantidade').value);
@@ -42,48 +45,48 @@
         const vendasDiarias = parseFloat(document.getElementById('vendasDiarias').value);
         const margemLucro = parseFloat(document.getElementById('margemLucro').value) / 100;
 
-        const estoqueLimite = 0.7 * quantidade;
         const precoVendaComMargem = precoUnitario * (1 + margemLucro);
+        const dataInicio = new Date(2025, 1, 1);
+        const dataPagamento = new Date(dataInicio);
+        dataPagamento.setDate(dataInicio.getDate() + prazoPagamento);
+        const dataPagamentoLabel = dataPagamento.toISOString().split('T')[0];
 
-        let datas = [];
-        let estoque = [];
-        let fluxoCaixa = [];
-        let estoqueMargem = [];
-        let fluxoCaixaMargem = [];
+        const datas = [];
+        const estoque = [];
+        const fluxoCaixa = [];
+        const estoqueMargem = [];
+        const fluxoCaixaMargem = [];
 
         let estoqueAtual = quantidade;
         let caixaAcumulado = 0;
-
         let estoqueAtualMargem = quantidade;
         let caixaAcumuladoMargem = 0;
 
-        const dataInicio = new Date(2025, 1, 1);
-        const dataPagamento = new Date(dataInicio.getTime());
-        dataPagamento.setDate(dataInicio.getDate() + prazoPagamento);
-        const dataPagamentoFormatada = dataPagamento.toISOString().split('T')[0];
-
         for (let dia = 0; dia < 60; dia++) {
-            const dataAtual = new Date(dataInicio.getTime());
+            const dataAtual = new Date(dataInicio);
             dataAtual.setDate(dataInicio.getDate() + dia);
-            datas.push(dataAtual.toISOString().split('T')[0]);
+            const dataStr = dataAtual.toISOString().split('T')[0];
+            datas.push(dataStr);
 
+            // Cenário sem margem extra
             if (estoqueAtual > 0) {
-                let vendidos = Math.min(vendasDiarias, estoqueAtual);
+                const vendidos = Math.min(vendasDiarias, estoqueAtual);
                 estoqueAtual -= vendidos;
                 caixaAcumulado += vendidos * precoUnitario;
             }
-            if (dia === prazoPagamento) {
+            if (dataStr === dataPagamentoLabel) {
                 caixaAcumulado -= precoUnitario * quantidade;
             }
             estoque.push(estoqueAtual);
             fluxoCaixa.push(caixaAcumulado);
 
+            // Cenário com margem
             if (estoqueAtualMargem > 0) {
-                let vendidosMargem = Math.min(vendasDiarias, estoqueAtualMargem);
-                estoqueAtualMargem -= vendidosMargem;
-                caixaAcumuladoMargem += vendidosMargem * precoVendaComMargem;
+                const vendidosM = Math.min(vendasDiarias, estoqueAtualMargem);
+                estoqueAtualMargem -= vendidosM;
+                caixaAcumuladoMargem += vendidosM * precoVendaComMargem;
             }
-            if (dia === prazoPagamento) {
+            if (dataStr === dataPagamentoLabel) {
                 caixaAcumuladoMargem -= precoUnitario * quantidade;
             }
             estoqueMargem.push(estoqueAtualMargem);
@@ -92,16 +95,15 @@
 
         const ctx = document.getElementById('grafico').getContext('2d');
         if (window.graficoAtivo) window.graficoAtivo.destroy();
-
         window.graficoAtivo = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: datas,
                 datasets: [
                     { label: 'Estoque (Venda Constante)', data: estoque, borderColor: 'blue', yAxisID: 'y' },
-                    { label: 'Fluxo de Caixa (Venda Constante)', data: fluxoCaixa, borderColor: 'green', yAxisID: 'y1' },
+                    { label: 'Fluxo Caixa (Venda Constante)', data: fluxoCaixa, borderColor: 'green', yAxisID: 'y1' },
                     { label: 'Estoque (Margem 5%)', data: estoqueMargem, borderColor: 'purple', yAxisID: 'y' },
-                    { label: 'Fluxo de Caixa (Margem 5%)', data: fluxoCaixaMargem, borderColor: 'brown', yAxisID: 'y1' }
+                    { label: 'Fluxo Caixa (Margem 5%)', data: fluxoCaixaMargem, borderColor: 'brown', yAxisID: 'y1' }
                 ]
             },
             options: {
@@ -110,42 +112,19 @@
                         annotations: {
                             linhaPagamento: {
                                 type: 'line',
-                                xMin: dataPagamentoFormatada,
-                                xMax: dataPagamentoFormatada,
+                                xMin: dataPagamentoLabel,
+                                xMax: dataPagamentoLabel,
                                 borderColor: 'red',
                                 borderWidth: 2,
-                                label: {
-                                    enabled: true,
-                                    content: 'Prazo Pagamento',
-                                    position: 'start'
-                                }
+                                label: { enabled: true, content: 'Prazo Pagamento', position: 'start' }
                             }
                         }
                     }
                 },
                 scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            unit: 'day',
-                            tooltipFormat: 'dd/MM/yyyy'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Data'
-                        }
-                    },
-                    y: {
-                        type: 'linear',
-                        position: 'left',
-                        title: { display: true, text: 'Estoque (Caixas)' }
-                    },
-                    y1: {
-                        type: 'linear',
-                        position: 'right',
-                        title: { display: true, text: 'Fluxo de Caixa (R$)' },
-                        grid: { drawOnChartArea: false }
-                    }
+                    x: { type: 'category', title: { display: true, text: 'Data' } },
+                    y: { title: { display: true, text: 'Estoque (Caixas)' } },
+                    y1: { position: 'right', title: { display: true, text: 'Fluxo de Caixa (R$)' }, grid: { drawOnChartArea: false } }
                 }
             }
         });
