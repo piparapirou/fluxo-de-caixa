@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador de Fluxo de Caixa</title>
+    <title>Simulador de Fluxo de Caixa com Valorização de Estoque</title>
     <!-- Carrega Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -22,11 +22,14 @@
         <label>Vendas Diárias (caixas):</label>
         <input type="number" id="vendasDiarias" value="20"><br><br>
 
-        <label>Margem de Lucro (%):</label>
+        <label>Margem de Lucro (% sobre custo):</label>
         <input type="number" id="margemLucro" value="5" step="0.1"><br><br>
 
         <label>Caixa Inicial (R$):</label>
         <input type="number" id="caixaInicial" value="0" step="0.01"><br><br>
+
+        <label>Taxa Básica de Juros Anual (%):</label>
+        <input type="number" id="taxaJuros" value="10" step="0.01"><br><br>
 
         <button type="button" onclick="gerarGrafico()">Gerar Gráfico</button>
     </form>
@@ -35,42 +38,64 @@
 
     <script>
     function gerarGrafico() {
+        // Captura valores do formulário
         const precoUnitario = parseFloat(document.getElementById('precoUnitario').value);
         const quantidade = parseInt(document.getElementById('quantidade').value);
         const prazoPagamento = parseInt(document.getElementById('prazoPagamento').value);
         const vendasDiarias = parseFloat(document.getElementById('vendasDiarias').value);
-        const margemLucro = parseFloat(document.getElementById('margemLucro').value) / 100;
+        const margem = parseFloat(document.getElementById('margemLucro').value) / 100;
         const caixaInicial = parseFloat(document.getElementById('caixaInicial').value);
+        const taxaAnual = parseFloat(document.getElementById('taxaJuros').value) / 100;
 
-        const precoVendaComMargem = precoUnitario * (1 + margemLucro);
+        // Taxa diária aproximada
+        const taxaDiaria = taxaAnual / 365;
+
+        // Preço de venda sem juros
+        // Cálculo será ajustado por juros para cada dia
+
+        // Datas e arrays de dados
+        const datas = [];
+        const estoque = [];
+        const valorEstoque = [];
+        const fluxoCaixa = [];
+
+        // Variáveis de simulação
+        let estoqueAtual = quantidade;
+        let caixaAcumulado = caixaInicial;
+
+        // Data de início: 1 de fevereiro de 2025
         const dataInicio = new Date(2025, 1, 1);
-        let datas = [];
-        let estoqueMargem = [];
-        let fluxoCaixaMargem = [];
-
-        let estoqueAtualMargem = quantidade;
-        let caixaAcumuladoMargem = caixaInicial;
 
         for (let dia = 0; dia < 60; dia++) {
+            // Data atual e label
             const dataAtual = new Date(dataInicio);
             dataAtual.setDate(dataInicio.getDate() + dia);
             const dataStr = dataAtual.toISOString().split('T')[0];
             datas.push(dataStr);
 
-            // Vendas com margem de lucro
-            if (estoqueAtualMargem > 0) {
-                const vendidosM = Math.min(vendasDiarias, estoqueAtualMargem);
-                estoqueAtualMargem -= vendidosM;
-                caixaAcumuladoMargem += vendidosM * precoVendaComMargem;
+            // Calcula valorização do estoque pelo juro diário
+            const valorUnidadeComJuros = precoUnitario * Math.pow(1 + taxaDiaria, dia);
+            valorEstoque.push(estoqueAtual * valorUnidadeComJuros);
+
+            // Vendas a partir do dia seguinte
+            if (dia > 0 && estoqueAtual > 0) {
+                const vendidos = Math.min(vendasDiarias, estoqueAtual);
+                estoqueAtual -= vendidos;
+                // Preço de venda com margem e juros
+                const precoVendaUnitario = valorUnidadeComJuros * (1 + margem);
+                caixaAcumulado += vendidos * precoVendaUnitario;
             }
-            // Pagamento do fornecedor
+
+            // Pagamento do fornecedor no prazo
             if (dia === prazoPagamento) {
-                caixaAcumuladoMargem -= precoUnitario * quantidade;
+                caixaAcumulado -= precoUnitario * quantidade;
             }
-            estoqueMargem.push(estoqueAtualMargem);
-            fluxoCaixaMargem.push(caixaAcumuladoMargem);
+
+            estoque.push(estoqueAtual);
+            fluxoCaixa.push(caixaAcumulado);
         }
 
+        // Desenha o gráfico
         const ctx = document.getElementById('grafico').getContext('2d');
         if (window.graficoAtivo) window.graficoAtivo.destroy();
         window.graficoAtivo = new Chart(ctx, {
@@ -79,24 +104,30 @@
                 labels: datas,
                 datasets: [
                     {
-                        label: `Fluxo de Caixa (Margem ${margemLucro * 100}%)`,
-                        data: fluxoCaixaMargem,
+                        label: 'Fluxo de Caixa (R$)',
+                        data: fluxoCaixa,
                         borderColor: 'green',
                         yAxisID: 'y1'
                     },
                     {
-                        label: `Estoque (Margem ${margemLucro * 100}%)`,
-                        data: estoqueMargem,
+                        label: 'Estoque (caixas)',
+                        data: estoque,
                         borderColor: 'purple',
                         yAxisID: 'y'
+                    },
+                    {
+                        label: 'Valor Estoque (R$)',
+                        data: valorEstoque,
+                        borderColor: 'orange',
+                        yAxisID: 'y1'
                     }
                 ]
             },
             options: {
                 scales: {
                     x: { type: 'category', title: { display: true, text: 'Data' } },
-                    y: { title: { display: true, text: 'Estoque (Caixas)' } },
-                    y1: { position: 'right', title: { display: true, text: 'Fluxo de Caixa (R$)' }, grid: { drawOnChartArea: false } }
+                    y: { title: { display: true, text: 'Estoque (caixas)' } },
+                    y1: { position: 'right', title: { display: true, text: 'Valor / Fluxo de Caixa (R$)' }, grid: { drawOnChartArea: false } }
                 }
             }
         });
@@ -104,3 +135,4 @@
     </script>
 </body>
 </html>
+
