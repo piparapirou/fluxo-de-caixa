@@ -2,18 +2,24 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Simulador de Fluxo de Caixa com Valorização de Estoque</title>
+    <title>Simulador de Fluxo de Caixa com Lucro Acumulado</title>
     <!-- Carrega Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #controls { margin: 10px 0; }
+        #controls label { margin-right: 15px; }
+    </style>
 </head>
 <body>
     <h1>Simulador de Fluxo de Caixa</h1>
-
     <form id="formulario">
-        <label>Preço Unitário (R$):</label>
-        <input type="number" id="precoUnitario" value="73" step="0.01"><br><br>
+        <label>Preço de Venda Unitário (R$):</label>
+        <input type="number" id="precoVenda" value="76.65" step="0.01"><br><br>
 
-        <label>Quantidade (Caixas):</label>
+        <label>Preço de Custo Unitário (R$):</label>
+        <input type="number" id="precoCusto" value="73" step="0.01"><br><br>
+
+        <label>Quantidade (caixas):</label>
         <input type="number" id="quantidade" value="1000"><br><br>
 
         <label>Prazo de Pagamento (dias):</label>
@@ -22,7 +28,7 @@
         <label>Vendas Diárias (caixas):</label>
         <input type="number" id="vendasDiarias" value="20"><br><br>
 
-        <label>Margem de Lucro (% sobre custo):</label>
+        <label>Margem de Lucro (%):</label>
         <input type="number" id="margemLucro" value="5" step="0.1"><br><br>
 
         <label>Caixa Inicial (R$):</label>
@@ -34,103 +40,111 @@
         <button type="button" onclick="gerarGrafico()">Gerar Gráfico</button>
     </form>
 
+    <div id="controls">
+        <label><input type="checkbox" id="toggleFluxo" checked> Fluxo de Caixa</label>
+        <label><input type="checkbox" id="toggleValorEstoque" checked> Valor Estoque</label>
+        <label><input type="checkbox" id="toggleMargem" checked> Margem Real</label>
+        <label><input type="checkbox" id="toggleLucro" checked> Lucro Acumulado</label>
+    </div>
+
     <canvas id="grafico" width="1000" height="500"></canvas>
 
     <script>
+    let chart;
     function gerarGrafico() {
         // Captura valores do formulário
-        const precoUnitario = parseFloat(document.getElementById('precoUnitario').value);
+        const precoVenda = parseFloat(document.getElementById('precoVenda').value);
+        const precoCusto = parseFloat(document.getElementById('precoCusto').value);
         const quantidade = parseInt(document.getElementById('quantidade').value);
         const prazoPagamento = parseInt(document.getElementById('prazoPagamento').value);
         const vendasDiarias = parseFloat(document.getElementById('vendasDiarias').value);
-        const margem = parseFloat(document.getElementById('margemLucro').value) / 100;
+        const margemPercentual = parseFloat(document.getElementById('margemLucro').value) / 100;
         const caixaInicial = parseFloat(document.getElementById('caixaInicial').value);
         const taxaAnual = parseFloat(document.getElementById('taxaJuros').value) / 100;
 
-        // Taxa diária aproximada
         const taxaDiaria = taxaAnual / 365;
+        const dataInicio = new Date(2025, 1, 1);
 
-        // Preço de venda sem juros
-        // Cálculo será ajustado por juros para cada dia
-
-        // Datas e arrays de dados
+        // Arrays de dados
         const datas = [];
         const estoque = [];
-        const valorEstoque = [];
         const fluxoCaixa = [];
+        const valorEstoque = [];
+        const margemReal = [];
+        const lucroAcumuladoArr = [];
 
         // Variáveis de simulação
         let estoqueAtual = quantidade;
         let caixaAcumulado = caixaInicial;
-
-        // Data de início: 1 de fevereiro de 2025
-        const dataInicio = new Date(2025, 1, 1);
+        let lucroAcumulado = 0;
 
         for (let dia = 0; dia < 60; dia++) {
-            // Data atual e label
             const dataAtual = new Date(dataInicio);
             dataAtual.setDate(dataInicio.getDate() + dia);
             const dataStr = dataAtual.toISOString().split('T')[0];
             datas.push(dataStr);
 
-            // Calcula valorização do estoque pelo juro diário
-            const valorUnidadeComJuros = precoUnitario * Math.pow(1 + taxaDiaria, dia);
-            valorEstoque.push(estoqueAtual * valorUnidadeComJuros);
+            // Cálculo do custo valorizado
+            const custoValorizado = precoCusto * Math.pow(1 + taxaDiaria, dia);
+            valorEstoque.push(estoqueAtual * custoValorizado);
 
-            // Vendas a partir do dia seguinte
+            // Inicializa margem para o dia
+            let margemNoDia = null;
+
             if (dia > 0 && estoqueAtual > 0) {
                 const vendidos = Math.min(vendasDiarias, estoqueAtual);
                 estoqueAtual -= vendidos;
-                // Preço de venda com margem e juros
-                const precoVendaUnitario = valorUnidadeComJuros * (1 + margem);
-                caixaAcumulado += vendidos * precoVendaUnitario;
+
+                // Receita e lucro diário
+                caixaAcumulado += vendidos * precoVenda;
+                const lucroNoDia = vendidos * (precoVenda - custoValorizado);
+                lucroAcumulado += lucroNoDia;
+                lucroAcumuladoArr.push(lucroAcumulado);
+
+                // Margem real em %
+                margemNoDia = (precoVenda - custoValorizado) / custoValorizado * 100;
+            } else {
+                lucroAcumuladoArr.push(lucroAcumulado);
             }
+            margemReal.push(margemNoDia);
 
             // Pagamento do fornecedor no prazo
             if (dia === prazoPagamento) {
-                caixaAcumulado -= precoUnitario * quantidade;
+                caixaAcumulado -= precoCusto * quantidade;
             }
 
             estoque.push(estoqueAtual);
             fluxoCaixa.push(caixaAcumulado);
         }
 
-        // Desenha o gráfico
         const ctx = document.getElementById('grafico').getContext('2d');
-        if (window.graficoAtivo) window.graficoAtivo.destroy();
-        window.graficoAtivo = new Chart(ctx, {
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: datas,
                 datasets: [
-                    {
-                        label: 'Fluxo de Caixa (R$)',
-                        data: fluxoCaixa,
-                        borderColor: 'green',
-                        yAxisID: 'y1'
-                    },
-                    {
-                        label: 'Estoque (caixas)',
-                        data: estoque,
-                        borderColor: 'purple',
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Valor Estoque (R$)',
-                        data: valorEstoque,
-                        borderColor: 'orange',
-                        yAxisID: 'y1'
-                    }
+                    { label: 'Fluxo de Caixa (R$)', data: fluxoCaixa, borderColor: 'green', yAxisID: 'y1' },
+                    { label: 'Valor Estoque (R$)', data: valorEstoque, borderColor: 'orange', yAxisID: 'y1' },
+                    { label: 'Margem Real (%)', data: margemReal, borderColor: 'blue', yAxisID: 'y2', spanGaps: true },
+                    { label: 'Lucro Acumulado (R$)', data: lucroAcumuladoArr, borderColor: 'red', yAxisID: 'y1', spanGaps: true }
                 ]
             },
             options: {
                 scales: {
                     x: { type: 'category', title: { display: true, text: 'Data' } },
-                    y: { title: { display: true, text: 'Estoque (caixas)' } },
-                    y1: { position: 'right', title: { display: true, text: 'Valor / Fluxo de Caixa (R$)' }, grid: { drawOnChartArea: false } }
+                    y: { position: 'left', title: { display: true, text: 'Estoque (caixas)' } },
+                    y1: { position: 'right', title: { display: true, text: 'R$' }, grid: { drawOnChartArea: false } },
+                    y2: { position: 'right', offset: true, title: { display: true, text: 'Margem (%)' }, grid: { drawOnChartArea: false } }
                 }
             }
         });
+
+        // Configura toggles
+        document.getElementById('toggleFluxo').onchange = function() { chart.setDatasetVisibility(0, this.checked); chart.update(); };
+        document.getElementById('toggleValorEstoque').onchange = function() { chart.setDatasetVisibility(1, this.checked); chart.update(); };
+        document.getElementById('toggleMargem').onchange = function() { chart.setDatasetVisibility(2, this.checked); chart.update(); };
+        document.getElementById('toggleLucro').onchange = function() { chart.setDatasetVisibility(3, this.checked); chart.update(); };
     }
     </script>
 </body>
